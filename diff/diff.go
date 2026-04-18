@@ -2,62 +2,58 @@ package diff
 
 import (
 	"fmt"
-	"io"
 	"sort"
 )
 
-// ChangeType describes the kind of change for a key.
+// ChangeType describes how a key changed between versions.
 type ChangeType string
 
 const (
 	Added    ChangeType = "added"
 	Removed  ChangeType = "removed"
 	Modified ChangeType = "modified"
-	Unchanged ChangeType = "unchanged"
 )
 
-// Change represents a single key-level diff entry.
+// Change represents a single key-level difference.
 type Change struct {
-	Key      string
-	Type     ChangeType
-	OldValue string
-	NewValue string
+	Key      string     `json:"key"`
+	Type     ChangeType `json:"type"`
+	OldValue string     `json:"old_value,omitempty"`
+	NewValue string     `json:"new_value,omitempty"`
 }
 
-// Compare returns the diff between two secret maps.
+// Compare returns the list of changes between two secret maps.
 func Compare(a, b map[string]string) []Change {
-	keys := unionKeys(a, b)
-	sort.Strings(keys)
-
 	var changes []Change
-	for _, k := range keys {
-		oldVal, inA := a[k]
-		newVal, inB := b[k]
-
+	for _, key := range unionKeys(a, b) {
+		oldVal, inA := a[key]
+		newVal, inB := b[key]
 		switch {
 		case inA && !inB:
-			changes = append(changes, Change{Key: k, Type: Removed, OldValue: oldVal})
+			changes = append(changes, Change{Key: key, Type: Removed, OldValue: oldVal})
 		case !inA && inB:
-			changes = append(changes, Change{Key: k, Type: Added, NewValue: newVal})
+			changes = append(changes, Change{Key: key, Type: Added, NewValue: newVal})
 		case oldVal != newVal:
-			changes = append(changes, Change{Key: k, Type: Modified, OldValue: oldVal, NewValue: newVal})
-		default:
-			changes = append(changes, Change{Key: k, Type: Unchanged})
+			changes = append(changes, Change{Key: key, Type: Modified, OldValue: oldVal, NewValue: newVal})
 		}
 	}
 	return changes
 }
 
-// Print writes a human-readable diff to w.
-func Print(w io.Writer, changes []Change) {
+// Print renders changes to stdout in a human-readable format.
+func Print(changes []Change) {
+	if len(changes) == 0 {
+		fmt.Println("No changes.")
+		return
+	}
 	for _, c := range changes {
 		switch c.Type {
 		case Added:
-			fmt.Fprintf(w, "+ %s = %s\n", c.Key, c.NewValue)
+			fmt.Printf("+ %s = %s\n", c.Key, c.NewValue)
 		case Removed:
-			fmt.Fprintf(w, "- %s = %s\n", c.Key, c.OldValue)
+			fmt.Printf("- %s = %s\n", c.Key, c.OldValue)
 		case Modified:
-			fmt.Fprintf(w, "~ %s: %s -> %s\n", c.Key, c.OldValue, c.NewValue)
+			fmt.Printf("~ %s: %s -> %s\n", c.Key, c.OldValue, c.NewValue)
 		}
 	}
 }
@@ -74,5 +70,6 @@ func unionKeys(a, b map[string]string) []string {
 	for k := range seen {
 		keys = append(keys, k)
 	}
+	sort.Strings(keys)
 	return keys
 }
