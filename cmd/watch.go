@@ -12,11 +12,13 @@ import (
 
 	"vaultd/vault"
 )
-var interval
 
+var interval int
+
+func init() {
 	watchCmd := &cobra.Command{
 		Use:   "watch [path]",
-		Sh a Vault secret path for version changes",
+		Short: "Watch a Vault secret path for version changes",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runWatch(args[0], interval)
@@ -28,6 +30,9 @@ var interval
 }
 
 func runWatch(path string, intervalSec int) error {
+	if intervalSec <= 0 .Errorf("interval must than 0, got %d", intervalSec)
+	}
+
 	client, err := vault.NewClient()
 	if err != nil {
 		return fmt.Errorf("vault client: %w", err)
