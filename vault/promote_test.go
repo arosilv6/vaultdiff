@@ -37,3 +37,11 @@ func TestPromote_NilClient(t *testing.T) {
 		t.Fatal("expected error for nil client")
 	}
 }
+
+func TestPromote_InvalidVersion(t *testing.T) {
+	p := newTestPromoter()
+	_, err := p.Promote("myapp/config", 0)
+	if err == nil {
+		t.Fatal("expected error for invalid version 0")
+	}
+}
