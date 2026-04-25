@@ -29,6 +29,9 @@ func NewExpirer(client *api.Client, mount string) *Expirer {
 }
 
 // CheckExpiry returns expiry info for the given secret path and version.
+// It reads KV v2 metadata from Vault and parses the deletion_time field
+// for the specified version. If no deletion_time is set, ExpiresAt will
+// be the zero value and TTL will be zero (indicating no expiry configured).
 func (e *Expirer) CheckExpiry(ctx context.Context, path string, version int) (*ExpiryInfo, error) {
 	if e.client == nil {
 		return nil, fmt.Errorf("vault client is nil")
@@ -57,11 +60,12 @@ func (e *Expirer) CheckExpiry(ctx context.Context, path string, version int) (*E
 	info := &ExpiryInfo{Path: path, Version: version}
 	if delTime, ok := vMeta["deletion_time"].(string); ok && delTime != "" {
 		parsed, err := time.Parse(time.RFC3339, delTime)
-		if err == nil {
-			info.ExpiresAt = parsed
-			info.TTL = time.Until(parsed)
-			info.Expired = time.Now().After(parsed)
+		if err != nil {
+			return nil, fmt.Errorf("parsing deletion_time %q: %w", delTime, err)
 		}
+		info.ExpiresAt = parsed
+		info.TTL = time.Until(parsed)
+		info.Expired = time.Now().After(parsed)
 	}
 
 	return info, nil
